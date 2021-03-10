@@ -137,6 +137,8 @@ public final class ParseElffStream {
         })
         .mapValues( message -> {
             log.info(message);
+            //TODO: Push into JSON using gson library
+            //TODO: each message individually to the output topic (one to many)
         })
         .to(outputTopicName, Produced.valueSerde(Serdes.String()));
 
