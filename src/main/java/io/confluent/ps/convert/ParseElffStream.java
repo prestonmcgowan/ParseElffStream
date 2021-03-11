@@ -85,7 +85,6 @@ public final class ParseElffStream {
      */
     protected Topology buildTopology(Properties envProps) {
         log.debug("Starting buildTopology");
-        final String gzipMode = envProps.getProperty("gzip.mode");
         final String inputTopicName = envProps.getProperty("input.topic.name");
         final String outputTopicName = envProps.getProperty("output.topic.name");
 
@@ -104,24 +103,24 @@ public final class ParseElffStream {
             log.debug("Decoded data!");
             if (isGZipped(elffData.get())) {
                 try {
-                    output = decompress(elffData.get());
+                    elffString = decompress(elffData.get());
                 } catch (IOException e) {
                     // TODO: Poison Pill Time
                     log.info("Decode error!");
                     e.printStackTrace();
-                };
-                log.debug("Decoded: " + output);
+                }
+                log.debug("Decoded: {}", elffString);
             } else {
                 // Data is already decoded
                 elffString = elffData.toString();
-                log.debug("Data is already decoded: " + output);
+                log.debug("Data is already decoded: {}", elffString);
             }
 
             // Now that we have the ELFF String, parse it
             try {
                 Reader targetReader = new StringReader(elffString);
                 ElfParser parser = ElfParserBuilder.of()
-                 .build(new StringReader(testCase.input));
+                 .build(targetReader);
 
                  // Copy the messages to our output
                 LogEntry entry;
@@ -135,12 +134,14 @@ public final class ParseElffStream {
 
             return messages;
         })
-        .mapValues( message -> {
-            log.info(message);
-            //TODO: Push into JSON using gson library
-            //TODO: each message individually to the output topic (one to many)
-        })
-        .to(outputTopicName, Produced.valueSerde(Serdes.String()));
+        .to(outputTopicName); // , Produced.valueSerde(Serdes.String()));
+        //TODO: Implement this so it works, it should be before the .to(...)
+        // .mapValues( message -> {
+        //     log.info(message);
+        //     //TODO: Push into JSON using gson library
+        //     //TODO: each message individually to the output topic (one to many)
+        // })
+
 
         return builder.build();
       }
@@ -153,9 +154,12 @@ public final class ParseElffStream {
        */
       protected Properties loadEnvProperties(String fileName) throws IOException {
         Properties envProps = new Properties();
-        FileInputStream input = new FileInputStream(fileName);
-        envProps.load(input);
-        input.close();
+
+        try (
+          FileInputStream input = new FileInputStream(fileName);
+         ) {
+          envProps.load(input);
+         }
         return envProps;
       }
 
@@ -170,7 +174,6 @@ public final class ParseElffStream {
         Properties streamProps = this.buildStreamsProperties(envProps);
 
         Topology topology = this.buildTopology(envProps);
-        // this.createTopics(envProps);
 
         final KafkaStreams streams = new KafkaStreams(topology, streamProps);
         final CountDownLatch latch = new CountDownLatch(1);
