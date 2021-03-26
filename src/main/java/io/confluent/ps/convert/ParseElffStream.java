@@ -12,7 +12,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.github.jcustenborder.parsers.elf.ElfParser;
 import com.github.jcustenborder.parsers.elf.ElfParserBuilder;
@@ -20,9 +23,11 @@ import com.github.jcustenborder.parsers.elf.LogEntry;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KafkaStreams;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -118,29 +123,44 @@ public final class ParseElffStream {
 
             // Now that we have the ELFF String, parse it
             try {
-                Reader targetReader = new StringReader(elffString);
-                ElfParser parser = ElfParserBuilder.of()
-                 .build(targetReader);
 
-                 // Copy the messages to our output
+                log.debug("---------- ELFF String Before ----------");
+                log.debug(elffString);
+
+                // Remove any escaped or encoded new lines with actual new lines
+                elffString = elffString.replace("\\r\\n", "\n");
+                elffString = elffString.replace("\\x0A", "\n");
+                // Remove any escaped quotes
+                elffString = elffString.replace("\\\"", "\"");
+
+                log.debug("---------- ELFF String After ----------");
+                log.debug(elffString);
+                log.debug("---------------------------------------");
+
+                // Now convert the string into a Reader so the Parser can do its thing
+                Reader targetReader = new StringReader(elffString);
+                ElfParser parser = ElfParserBuilder.of().build(targetReader);
+
+                // Copy the messages to our output
                 LogEntry entry;
                 while (null != (entry = parser.next())) {
                     messages.add(entry);
                 }
+                log.info("Parsed out {} messages", messages.size());
             } catch (IOException e) {
                 log.info("Parsing Exception");
                 e.printStackTrace();
             }
 
             return messages;
+        }).map((key, value) -> {
+            log.info("creating message");
+          return KeyValue.pair(
+                  UUID.randomUUID().toString(),
+                  value.toString()
+                 );
         })
-        .to(outputTopicName); // , Produced.valueSerde(Serdes.String()));
-        //TODO: Implement this so it works, it should be before the .to(...)
-        // .mapValues( message -> {
-        //     log.info(message);
-        //     //TODO: Push into JSON using gson library
-        //     //TODO: each message individually to the output topic (one to many)
-        // })
+      .to(outputTopicName);//to(outputTopicName, Produced<Integer, LogEntry>); // , Produced.valueSerde(Serdes.String()));
 
 
         return builder.build();
@@ -196,6 +216,8 @@ public final class ParseElffStream {
         }
         System.exit(0);
       }
+
+
 
       /**
        *  Run this with an arg for the properties file
