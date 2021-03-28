@@ -32,6 +32,13 @@ import org.glassfish.jersey.internal.util.Producer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+import com.google.gson.Gson;
+import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.common.serialization.Serde;
+import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.Serializer;
+
 /**
  * Parse ELFF Stream with a KStream.
  */
@@ -94,13 +101,28 @@ public final class ParseElffStream {
             builder.stream(inputTopicName, Consumed.with(Serdes.Integer(), Serdes.Bytes()));
         ;
 
+        // Build the json Serialiser for log Entry
+        //example from https://github.com/apache/kafka/blob/1.0/streams/examples/src/main/java/org/apache/kafka/streams/examples/pageview/PageViewTypedDemo.java
+
+        Map<String, Object> serdeProps = new HashMap<>();
+        final Serializer<LogEntry> logEntrySerializer = new JsonPOJOSerializer<>();
+        serdeProps.put("JsonPOJOClass", LogEntry.class);
+        logEntrySerializer.configure(serdeProps, false);
+
+        final Deserializer<LogEntry> LogEntryDeserializer = new JsonPOJODeserializer<>();
+        serdeProps.put("JsonPOJOClass", LogEntry.class);
+        LogEntryDeserializer.configure(serdeProps, false);
+
+        final Serde<LogEntry> logEntrySerde = Serdes.serdeFrom(logEntrySerializer, LogEntryDeserializer);
+
         // decompress gzip data into a string
 
-        elffStream.mapValues( elffData-> {
+        elffStream.flatMap( (key, elffData) -> {
             //System.out.println(elffData.toString().replace("\\x0A", "\\r\\n"));
             //System.out.println("------------------Done printing elffString --------------------------");
 
-            List<LogEntry> messages = new ArrayList<>();
+            //List<LogEntry> messages = new ArrayList<>();
+            List<KeyValue<String, LogEntry>> messages= new LinkedList<>();
 
             // Grab the ELFF String or compressed ELFF Message
             String elffString = "";
@@ -125,14 +147,14 @@ public final class ParseElffStream {
                 String elffreplace = elffString.replace("\\x0A", "\n");
                 Reader targetReader = new StringReader(elffreplace);
                 System.out.println("------------------processing elffString --------------------------");
-                System.out.println(elffreplace);
-                System.out.print(targetReader);
                 ElfParser parser = ElfParserBuilder.of().build(targetReader);
                 System.out.println("------------------Done processing elffString --------------------------");
                  // Copy the messages to our output
                 LogEntry entry;
+
                 while (null != (entry = parser.next())) {
-                    messages.add(entry);
+                    System.out.println(entry);
+                    messages.add(KeyValue.pair(UUID.randomUUID().toString(),entry));
                 }
 
             } catch (IOException e) {
@@ -144,15 +166,8 @@ public final class ParseElffStream {
 
             return messages;
 
-        }).map((key, value) -> {
-            return
-            KeyValue.pair(
-                    UUID.randomUUID().toString(),
-                    value.toString()
-            );
-                }
-        )
-        .to(outputTopicName);//to(outputTopicName, Produced<Integer, LogEntry>); // , Produced.valueSerde(Serdes.String()));
+        })
+        .to(outputTopicName, Produced.with(Serdes.String(), logEntrySerde));
 
         //TODO: Implement this so it works, it should be before the .to(...)
         // .mapValues( message -> {
