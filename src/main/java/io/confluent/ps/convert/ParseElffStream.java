@@ -9,13 +9,13 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.time.Duration;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import com.github.jcustenborder.parsers.elf.ElfParser;
 import com.github.jcustenborder.parsers.elf.ElfParserBuilder;
@@ -23,8 +23,10 @@ import com.github.jcustenborder.parsers.elf.LogEntry;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.KeyValue;
@@ -95,13 +97,26 @@ public final class ParseElffStream {
 
         final StreamsBuilder builder = new StreamsBuilder();
 
+        // Build the json Serialiser for log Entry
+        //example from https://github.com/apache/kafka/blob/1.0/streams/examples/src/main/java/org/apache/kafka/streams/examples/pageview/PageViewTypedDemo.java
+
+        Map<String, Object> serdeProps = new HashMap<>();
+        final Serializer<LogEntry> logEntrySerializer = new JsonPOJOSerializer<>();
+        serdeProps.put("JsonPOJOClass", LogEntry.class);
+        logEntrySerializer.configure(serdeProps, false);
+        final Deserializer<LogEntry> logEntryDeserializer = new JsonPOJODeserializer<>();
+        serdeProps.put("JsonPOJOClass", LogEntry.class);
+        logEntryDeserializer.configure(serdeProps, false);
+
+        final Serde<LogEntry> logEntrySerde = Serdes.serdeFrom(logEntrySerializer, logEntryDeserializer);
+
         // topic contains byte data
         final KStream<Integer, Bytes> elffStream =
             builder.stream(inputTopicName, Consumed.with(Serdes.Integer(), Serdes.Bytes()));
 
         // decompress gzip data into a string
-        elffStream.mapValues( elffData -> {
-            List<LogEntry> messages = new ArrayList<>();
+        elffStream.flatMap( (key, elffData) -> {
+            List<KeyValue<String, LogEntry>> messages= new LinkedList<>();
 
             // Grab the ELFF String or compressed ELFF Message
             String elffString = "";
@@ -124,18 +139,20 @@ public final class ParseElffStream {
             // Now that we have the ELFF String, parse it
             try {
 
-                log.debug("---------- ELFF String Before ----------");
-                log.debug(elffString);
+                log.info("---------- ELFF String Before ----------");
+                log.info(elffString);
 
                 // Remove any escaped or encoded new lines with actual new lines
                 elffString = elffString.replace("\\r\\n", "\n");
+                elffString = elffString.replace("\\x5Cr\\x5Cn", "\n");
                 elffString = elffString.replace("\\x0A", "\n");
                 // Remove any escaped quotes
                 elffString = elffString.replace("\\\"", "\"");
+                elffString = elffString.replace("\\x5C\"", "\"");
 
-                log.debug("---------- ELFF String After ----------");
-                log.debug(elffString);
-                log.debug("---------------------------------------");
+                log.info("---------- ELFF String After ----------");
+                log.info(elffString);
+                log.info("---------------------------------------");
 
                 // Now convert the string into a Reader so the Parser can do its thing
                 Reader targetReader = new StringReader(elffString);
@@ -144,23 +161,17 @@ public final class ParseElffStream {
                 // Copy the messages to our output
                 LogEntry entry;
                 while (null != (entry = parser.next())) {
-                    messages.add(entry);
+                    messages.add(KeyValue.pair(UUID.randomUUID().toString(),entry));
                 }
-                log.info("Parsed out {} messages", messages.size());
+                log.debug("Parsed out {} messages", messages.size());
             } catch (IOException e) {
                 log.info("Parsing Exception");
                 e.printStackTrace();
             }
 
             return messages;
-        }).map((key, value) -> {
-            log.info("creating message");
-          return KeyValue.pair(
-                  UUID.randomUUID().toString(),
-                  value.toString()
-                 );
         })
-      .to(outputTopicName);//to(outputTopicName, Produced<Integer, LogEntry>); // , Produced.valueSerde(Serdes.String()));
+        .to(outputTopicName, Produced.with(Serdes.String(), logEntrySerde));
 
 
         return builder.build();
