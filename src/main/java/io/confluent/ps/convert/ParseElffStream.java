@@ -84,14 +84,13 @@ public final class ParseElffStream {
 
 
         // Broken negative timestamp
-        props.put(StreamsConfig.DEFAULT_TIMESTAMP_EXTRACTOR_CLASS_CONFIG,
-            WallclockTimestampExtractor.class.getName());
+        props.put(StreamsConfig.DEFAULT_TIMESTAMP_EXTRACTOR_CLASS_CONFIG, WallclockTimestampExtractor.class.getName());
 
         props.put(StreamsConfig.PRODUCER_PREFIX + ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
             "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor");
 
-      props.put(StreamsConfig.MAIN_CONSUMER_PREFIX + ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG,
-          "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor");
+        props.put(StreamsConfig.MAIN_CONSUMER_PREFIX + ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG,
+            "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor");
 
         return props;
     }

@@ -56,17 +56,22 @@
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-clients</artifactId>
-      <version>6.1.0-ccs</version>
+      <version>6.1.1-ccs</version>
     </dependency>
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>kafka-streams</artifactId>
-      <version>6.1.0-ccs</version>
+      <version>6.1.1-ccs</version>
     </dependency>
     <dependency>
       <groupId>io.confluent</groupId>
       <artifactId>kafka-streams-avro-serde</artifactId>
-      <version>6.1.0</version>
+      <version>6.1.1</version>
+    </dependency>
+    <dependency>
+      <groupId>io.confluent</groupId>
+      <artifactId>monitoring-interceptors</artifactId>
+      <version>6.1.1</version>
     </dependency>
     <dependency>
       <groupId>org.apache.kafka</groupId>
