@@ -22,6 +22,8 @@ import com.github.jcustenborder.parsers.elf.ElfParserBuilder;
 import com.github.jcustenborder.parsers.elf.LogEntry;
 
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
@@ -41,22 +43,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Parse ELFF Stream with a KStream.
- */
+* Parse ELFF Stream with a KStream.
+*/
 public final class ParseElffStream {
     private final Logger log = LoggerFactory.getLogger(ParseElffStream.class);
 
     /**
-     * Parse ELFF Stream Constructor.
-     */
+    * Parse ELFF Stream Constructor.
+    */
     private ParseElffStream() {
     }
 
     /**
-     * Setup the Streams Processors we will be using from the passed in configuration.properties.
-     * @param envProps Environment Properties file
-     * @return Properties Object ready for KafkaStreams Topology Builder
-     */
+    * Setup the Streams Processors we will be using from the passed in configuration.properties.
+    * @param envProps Environment Properties file
+    * @return Properties Object ready for KafkaStreams Topology Builder
+    */
     protected Properties buildStreamsProperties(Properties envProps) {
         Properties props = new Properties();
 
@@ -77,19 +79,28 @@ public final class ParseElffStream {
         log.debug("-----------------");
 
         props.put("error.topic.name", envProps.getProperty("error.topic.name"));
+        props.put(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, SendToDeadLetterQueueDeserialicationExceptionHandler.class.getName());
+        props.put(StreamsConfig.DEFAULT_PRODUCTION_EXCEPTION_HANDLER_CLASS_CONFIG, SendToDeadLetterQueueProductionExceptionHandler.class.getName());
+
 
         // Broken negative timestamp
         props.put(StreamsConfig.DEFAULT_TIMESTAMP_EXTRACTOR_CLASS_CONFIG,
             WallclockTimestampExtractor.class.getName());
 
+        props.put(StreamsConfig.PRODUCER_PREFIX + ProducerConfig.INTERCEPTOR_CLASSES_CONFIG,
+            "io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor");
+
+      props.put(StreamsConfig.MAIN_CONSUMER_PREFIX + ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG,
+          "io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor");
+
         return props;
     }
 
     /**
-     * Build the topology from the loaded configuration
-     * @param Properties built by the buildStreamsProperties
-     * @return The build topology
-     */
+    * Build the topology from the loaded configuration
+    * @param Properties built by the buildStreamsProperties
+    * @return The build topology
+    */
     protected Topology buildTopology(Properties envProps) {
         log.debug("Starting buildTopology");
         final String inputTopicName = envProps.getProperty("input.topic.name");
@@ -111,8 +122,8 @@ public final class ParseElffStream {
         final Serde<LogEntry> logEntrySerde = Serdes.serdeFrom(logEntrySerializer, logEntryDeserializer);
 
         // topic contains byte data
-        final KStream<Integer, Bytes> elffStream =
-            builder.stream(inputTopicName, Consumed.with(Serdes.Integer(), Serdes.Bytes()));
+        final KStream<String, Bytes> elffStream =
+        builder.stream(inputTopicName, Consumed.with(Serdes.String(), Serdes.Bytes()));
 
         // decompress gzip data into a string
         elffStream.flatMap( (key, elffData) -> {
@@ -175,31 +186,31 @@ public final class ParseElffStream {
 
 
         return builder.build();
-      }
+    }
 
-      /**
-       * Load in the Environment Properties that were passed in from the CLI.
-       * @param fileName
-       * @return
-       * @throws IOException
-       */
-      protected Properties loadEnvProperties(String fileName) throws IOException {
+    /**
+    * Load in the Environment Properties that were passed in from the CLI.
+    * @param fileName
+    * @return
+    * @throws IOException
+    */
+    protected Properties loadEnvProperties(String fileName) throws IOException {
         Properties envProps = new Properties();
 
         try (
-          FileInputStream input = new FileInputStream(fileName);
-         ) {
-          envProps.load(input);
-         }
+        FileInputStream input = new FileInputStream(fileName);
+        ) {
+            envProps.load(input);
+        }
         return envProps;
-      }
+    }
 
-      /**
-       * Main function that handles the life cycle of the Kafka Streams app.
-       * @param configPath
-       * @throws IOException
-       */
-      private void run(String configPath) throws IOException {
+    /**
+    * Main function that handles the life cycle of the Kafka Streams app.
+    * @param configPath
+    * @throws IOException
+    */
+    private void run(String configPath) throws IOException {
 
         Properties envProps = this.loadEnvProperties(configPath);
         Properties streamProps = this.buildStreamsProperties(envProps);
@@ -211,35 +222,50 @@ public final class ParseElffStream {
 
         // Attach shutdown handler to catch Control-C.
         Runtime.getRuntime().addShutdownHook(new Thread("streams-shutdown-hook") {
-          @Override
-          public void run() {
-            streams.close(Duration.ofSeconds(5));
-            latch.countDown();
-          }
+            @Override
+            public void run() {
+                streams.close(Duration.ofSeconds(5));
+                latch.countDown();
+            }
         });
 
         try {
-          streams.cleanUp();
-          streams.start();
-          latch.await();
+            streams.cleanUp();
+            streams.start();
+            latch.await();
         } catch (Throwable e) {
-          System.exit(1);
+            System.exit(1);
         }
         System.exit(0);
-      }
+    }
 
+    private static void exampleProperties() {
+        System.out.println("Please create a configuration properties file and pass it on the command line as an argument");
+        System.out.println("Sample env.properties:");
+        System.out.println("----------------------------------------------------------------");
+        System.out.println("application.id=parse-elff-stream");
+        System.out.println("bootstrap.servers=boot-strap.fqdn:9093");
+        System.out.println("schema.registry.url=http://schema-registry.fqdn:8081");
+        System.out.println("input.topic.name=elff-input");
+        System.out.println("output.topic.name=elff-output");
+        System.out.println("error.topic.name=elff-error");
+        System.out.println("security.protocol=SASL_PLAINTEXT");
+        System.out.println("sasl.mechanism=PLAIN");
+        System.out.println("sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"admin\" password=\"password\";");
+        System.out.println("----------------------------------------------------------------");
+    }
 
-
-      /**
-       *  Run this with an arg for the properties file
-       * @param args
-       * @throws IOException
-       */
-      public static void main(String[] args) throws IOException {
+    /**
+    *  Run this with an arg for the properties file
+    * @param args
+    * @throws IOException
+    */
+    public static void main(String[] args) throws IOException {
         if (args.length < 1) {
-          throw new IllegalArgumentException("This program takes one argument: the path to an environment configuration file.");
+            exampleProperties();
+            throw new IllegalArgumentException("This program takes one argument: the path to an environment configuration file.");
         }
 
         new ParseElffStream().run(args[0]);
-      }
+    }
 }
