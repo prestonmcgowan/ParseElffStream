@@ -21,6 +21,12 @@ Start the Kafka Stream
 
 ```
 
+GZip sample ELFF messages
+```
+cd test/resources
+for x in `ls *.elff`; do echo $x; gzip -k $x; done
+```
+
 Push the sample ELFF messages
 ```
 kafkacat -F configuration/kafkacat.properties -b big-host-2.datadisorder.dev:9093 -P -t elff-input -k test-message-key test/resources/formatted.elff

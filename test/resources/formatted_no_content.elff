@@ -1,0 +1,8 @@
+#Software: SGOS 3.2.4.8
+#Version: 1.0
+#Date: 2005-04-12 19:56:33
+#Fields: date time time-taken c-ip sc-status s-action sc-bytes cs(bytes) cs(method) cs(uri-scheme) cs(host) cs(uri-path) cs(uri-query) cs(username) s-hierarchy s-supplier-name rs(Content-Type) cs(User-Agent) sc-filter-result sc-filter-category x-virus-id s-ip s-sitename x-virus-details x-icap-error-code x-icap-error-details
+#Software: SGOS 3.2.4.8
+#Version: 1.0
+#Date: 2005-04-12 22:40:05
+#Fields: date time time-taken c-ip sc-status s-action sc-bytes cs(bytes) cs(method) cs(uri-scheme) cs(host) cs(uri-path) cs(uri-query) cs(username) s-hierarchy s-supplier-name rs(Content-Type) cs(User-Agent) sc-filter-result sc-filter-category x-virus-id s-ip s-sitename x-virus-details x-icap-error-code x-icap-error-details

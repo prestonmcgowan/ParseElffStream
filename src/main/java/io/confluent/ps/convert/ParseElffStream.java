@@ -156,6 +156,7 @@ public final class ParseElffStream {
                 elffString = elffString.replace("\\r\\n", "\n");
                 elffString = elffString.replace("\\x5Cr\\x5Cn", "\n");
                 elffString = elffString.replace("\\x0A", "\n");
+                elffString = elffString.replace("\\x0D", "");
                 // Remove any escaped quotes
                 elffString = elffString.replace("\\\"", "\"");
                 elffString = elffString.replace("\\x5C\"", "\"");
@@ -176,6 +177,9 @@ public final class ParseElffStream {
                 log.debug("Parsed out {} messages", messages.size());
             } catch (IOException e) {
                 log.info("Parsing Exception");
+                e.printStackTrace();
+            } catch (IllegalStateException e) {
+                log.info("Empty Bluecoat File");
                 e.printStackTrace();
             }
 
