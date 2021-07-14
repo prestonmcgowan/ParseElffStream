@@ -122,7 +122,7 @@ public final class ParseElffStream {
 
         // topic contains byte data
         final KStream<String, Bytes> elffStream =
-        builder.stream(inputTopicName, Consumed.with(Serdes.String(), Serdes.Bytes()));
+            builder.stream(inputTopicName, Consumed.with(Serdes.String(), Serdes.Bytes()));
 
         // decompress gzip data into a string
         elffStream.flatMap( (key, elffData) -> {

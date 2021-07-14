@@ -41,12 +41,12 @@
       <artifactId>extended-log-format</artifactId>
       <version>0.0.2-SNAPSHOT</version>
     </dependency>
-    
+
     <!-- KStreams dependencies -->
     <dependency>
       <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-      <version>1.7.30</version>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.7.31</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
@@ -96,7 +96,7 @@
       <artifactId>gson</artifactId>
       <version>2.8.5</version>
     </dependency>
-    
+
   </dependencies>
   <build>
     <plugins>
