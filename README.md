@@ -24,8 +24,8 @@ The KStream Application requires a configuration properties file.
 Example:
 ```
 application.id=parse-elff-stream
-bootstrap.servers=big-host-2.datadisorder.dev:9093
-schema.registry.url=http://big-host-2.datadisorder.dev:8081
+bootstrap.servers=big-host-1.datadisorder.dev:9092
+schema.registry.url=http://big-host-1.datadisorder.dev:8081
 
 input.topic.name=elff-input
 
@@ -37,7 +37,7 @@ security.protocol=SASL_PLAINTEXT
 sasl.mechanism=PLAIN
 sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin";
 
-confluent.metrics.reporter.bootstrap.servers=big-host-2.datadisorder.dev:9091
+confluent.metrics.reporter.bootstrap.servers=big-host-1.datadisorder.dev:9091
 confluent.metrics.reporter.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret";
 confluent.metrics.reporter.sasl.mechanism=PLAIN
 confluent.metrics.reporter.security.protocol=SASL_PLAINTEXT
@@ -56,11 +56,11 @@ java -jar parse-elff-stream-0.1-jar-with-dependencies.jar lab.properties
 ## Test
 Create input/output/error topics
 ```
-$ kafka-topics --bootstrap-server big-host-2.datadisorder.dev:9093 --create --topic elff-input --replication-factor 1 --partitions 3 --command-config configuration/dev.properties
+$ kafka-topics --bootstrap-server big-host-1.datadisorder.dev:9092 --create --topic elff-input --replication-factor 1 --partitions 3 --command-config configuration/dev.properties
 
-$ kafka-topics --bootstrap-server big-host-2.datadisorder.dev:9093 --create --topic elff-output --replication-factor 1 --partitions 3 --command-config configuration/dev.properties
+$ kafka-topics --bootstrap-server big-host-1.datadisorder.dev:9092 --create --topic elff-output --replication-factor 1 --partitions 3 --command-config configuration/dev.properties
 
-$ kafka-topics --bootstrap-server big-host-2.datadisorder.dev:9093 --create --topic elff-error --replication-factor 1 --partitions 3 --command-config configuration/dev.properties
+$ kafka-topics --bootstrap-server big-host-1.datadisorder.dev:9092 --create --topic elff-error --replication-factor 1 --partitions 3 --command-config configuration/dev.properties
 ```
 
 Assign ACLs if needed
@@ -78,13 +78,13 @@ for x in `ls *.elff`; do echo $x; gzip -k $x; done
 
 Push the sample ELFF messages
 ```
-kafkacat -F configuration/kafkacat.properties -b big-host-2.datadisorder.dev:9093 -P -t elff-input -k test-message-key test/resources/formatted.elff
+kcat -F configuration/kafkacat.properties -b big-host-1.datadisorder.dev:9092 -P -t elff-input -k test-message-key test/resources/formatted.elff
 
-kafkacat -F configuration/kafkacat.properties -b big-host-2.datadisorder.dev:9093 -P -t elff-input -k test-message-key test/resources/formatted.elff.gz
+kcat -F configuration/kafkacat.properties -b big-host-1.datadisorder.dev:9092 -P -t elff-input -k test-message-key test/resources/formatted.elff.gz
 ```
 
-Validate the messages were parsed using the Confluent Control Center or with kafkacat
+Validate the messages were parsed using the Confluent Control Center or with kcat
 
 ```
-kafkacat -F configuration/kafkacat.properties -b  big-host-2.datadisorder.dev:9093 -C -t elff-output
+kcat -F configuration/kafkacat.properties -b  big-host-1.datadisorder.dev:9092 -C -t elff-output
 ```

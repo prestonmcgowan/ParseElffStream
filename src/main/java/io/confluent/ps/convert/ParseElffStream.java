@@ -1,8 +1,8 @@
 package io.confluent.ps.convert;
 
-import static com.gist.github.yfnick.Gzip.decompress;
-import static com.gist.github.yfnick.Gzip.isGZipped;
-import static org.apache.kafka.common.serialization.Serdes.String;
+import com.github.jcustenborder.parsers.elf.ElfParser;
+import com.github.jcustenborder.parsers.elf.ElfParserBuilder;
+import com.github.jcustenborder.parsers.elf.LogEntry;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -16,10 +16,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-
-import com.github.jcustenborder.parsers.elf.ElfParser;
-import com.github.jcustenborder.parsers.elf.ElfParserBuilder;
-import com.github.jcustenborder.parsers.elf.LogEntry;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -42,6 +39,10 @@ import org.apache.kafka.streams.processor.WallclockTimestampExtractor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static com.gist.github.yfnick.Gzip.decompress;
+import static com.gist.github.yfnick.Gzip.isGZipped;
+import static org.apache.kafka.common.serialization.Serdes.String;
+
 /**
 * Parse ELFF Stream with a KStream.
 */
@@ -62,25 +63,12 @@ public final class ParseElffStream {
     protected Properties buildStreamsProperties(Properties envProps) {
         Properties props = new Properties();
 
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, envProps.getProperty("application.id"));
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, envProps.getProperty("bootstrap.servers"));
+        props.putAll(envProps);
+
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, String().getClass());
-        props.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, envProps.getProperty("security.protocol"));
-        props.put(StreamsConfig.SECURITY_PROTOCOL_CONFIG, envProps.getProperty("security.protocol"));
-        props.put(SaslConfigs.SASL_MECHANISM, envProps.getProperty("sasl.mechanism"));
-        props.put(SaslConfigs.SASL_JAAS_CONFIG, envProps.getProperty("sasl.jaas.config"));
-
-        log.debug("SASL Config------");
-        log.debug("bootstrap.servers={}", envProps.getProperty("bootstrap.servers"));
-        log.debug("security.protocol={}", envProps.getProperty("security.protocol"));
-        log.debug("sasl.mechanism={}", envProps.getProperty("sasl.mechanism"));
-        log.debug("sasl.jaas.config={}", envProps.getProperty("sasl.jaas.config"));
-        log.debug("-----------------");
-
-        props.put("error.topic.name", envProps.getProperty("error.topic.name"));
-        props.put(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, SendToDeadLetterQueueDeserialicationExceptionHandler.class.getName());
-        props.put(StreamsConfig.DEFAULT_PRODUCTION_EXCEPTION_HANDLER_CLASS_CONFIG, SendToDeadLetterQueueProductionExceptionHandler.class.getName());
+        // props.put(StreamsConfig.DEFAULT_DESERIALIZATION_EXCEPTION_HANDLER_CLASS_CONFIG, SendToDeadLetterQueueDeserialicationExceptionHandler.class.getName());
+        // props.put(StreamsConfig.DEFAULT_PRODUCTION_EXCEPTION_HANDLER_CLASS_CONFIG, SendToDeadLetterQueueProductionExceptionHandler.class.getName());
 
 
         // Broken negative timestamp
@@ -100,10 +88,10 @@ public final class ParseElffStream {
     * @param Properties built by the buildStreamsProperties
     * @return The build topology
     */
-    protected Topology buildTopology(Properties envProps) {
+    protected Topology buildTopology(Properties streamProps) {
         log.debug("Starting buildTopology");
-        final String inputTopicName = envProps.getProperty("input.topic.name");
-        final String outputTopicName = envProps.getProperty("output.topic.name");
+        final String inputTopics     = streamProps.getProperty("input.topics");
+        final String outputTopicName = streamProps.getProperty("output.topic.name");
 
         final StreamsBuilder builder = new StreamsBuilder();
 
@@ -120,9 +108,11 @@ public final class ParseElffStream {
 
         final Serde<LogEntry> logEntrySerde = Serdes.serdeFrom(logEntrySerializer, logEntryDeserializer);
 
+        final Pattern inputTopicPattern = Pattern.compile(inputTopics);
+
         // topic contains byte data
         final KStream<String, Bytes> elffStream =
-            builder.stream(inputTopicName, Consumed.with(Serdes.String(), Serdes.Bytes()));
+            builder.stream(inputTopicPattern, Consumed.with(Serdes.String(), Serdes.Bytes()));
 
         // decompress gzip data into a string
         elffStream.flatMap( (key, elffData) -> {
@@ -218,7 +208,7 @@ public final class ParseElffStream {
         Properties envProps = this.loadEnvProperties(configPath);
         Properties streamProps = this.buildStreamsProperties(envProps);
 
-        Topology topology = this.buildTopology(envProps);
+        Topology topology = this.buildTopology(streamProps);
 
         final KafkaStreams streams = new KafkaStreams(topology, streamProps);
         final CountDownLatch latch = new CountDownLatch(1);
