@@ -44,7 +44,7 @@
     </dependency>
     <dependency>
       <!-- https://github.com/jcustenborder/extended-log-format-parser -->
-      <groupId>com.github.jcustenborder</groupId>
+      <groupId>com.github.jcustenborder.parsers</groupId>
       <artifactId>extended-log-format</artifactId>
       <version>0.0.2-SNAPSHOT</version>
     </dependency>

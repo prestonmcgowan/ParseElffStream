@@ -98,12 +98,11 @@ public final class ParseElffStream {
         // Build the json Serialiser for log Entry
         //example from https://github.com/apache/kafka/blob/1.0/streams/examples/src/main/java/org/apache/kafka/streams/examples/pageview/PageViewTypedDemo.java
 
-        Map<String, Object> serdeProps = new HashMap<>();
-        final Serializer<LogEntry> logEntrySerializer = new JsonPOJOSerializer<>();
+        Map<String, Object> serdeProps = (Map)streamProps;
         serdeProps.put("JsonPOJOClass", LogEntry.class);
+        final Serializer<LogEntry> logEntrySerializer = new JsonPOJOSerializer<>();
         logEntrySerializer.configure(serdeProps, false);
         final Deserializer<LogEntry> logEntryDeserializer = new JsonPOJODeserializer<>();
-        serdeProps.put("JsonPOJOClass", LogEntry.class);
         logEntryDeserializer.configure(serdeProps, false);
 
         final Serde<LogEntry> logEntrySerde = Serdes.serdeFrom(logEntrySerializer, logEntryDeserializer);

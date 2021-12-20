@@ -4,6 +4,13 @@ Parse BlueCoat (ELFF) Data Streams
 ### Build and Execution Environment
 * Java 8
 * Confluent Platform 5.5.x or newer
+* jcustenborder extended log format parser
+
+```
+git clone https://github.com/jcustenborder/extended-log-format-parser.git
+cd extended-log-format-parser
+mvn clean install
+ ```
 
 ## Build
 Use Maven to build the KStream Application.
