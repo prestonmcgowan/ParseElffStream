@@ -3,7 +3,7 @@ Parse BlueCoat (ELFF) Data Streams
 
 ### Build and Execution Environment
 * Java 8
-* Confluent Platform 5.5.x or newer
+* Confluent Platform 6.1.x or newer
 * jcustenborder extended log format parser
 
 ```
