@@ -49,16 +49,18 @@
       <version>0.0.2-SNAPSHOT</version>
     </dependency>
 
-    <!-- KStreams dependencies -->
+    <!-- Log4J -->
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
-      <version>1.7.31</version>
+      <groupId>ch.qos.reload4j</groupId>
+      <artifactId>reload4j</artifactId>
+      <version>1.2.21</version>
     </dependency>
+
+    <!-- KStreams dependencies -->
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
-      <version>2.8.6</version>
+      <version>2.9.0</version>
     </dependency>
     <dependency>
       <groupId>org.apache.kafka</groupId>
