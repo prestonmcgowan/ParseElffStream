@@ -10,15 +10,14 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
 * GZip Util.
 */
-public class Gzip {
-    private static final Logger log = LoggerFactory.getLogger(Gzip.class);
+public final class Gzip {
+    private static final Logger LOG = LoggerFactory.getLogger(Gzip.class);
 
     /**
      * Private constructor, because Lint told me to.
@@ -72,17 +71,19 @@ public class Gzip {
     * @param in
     * @return
     */
+    @SuppressWarnings("checkstyle:magicnumber")
     public static boolean isGZipped(InputStream in) {
-        if (!in.markSupported()) {
-            in = new BufferedInputStream(in);
+        InputStream is = in;
+        if (!is.markSupported()) {
+            is = new BufferedInputStream(is);
         }
-        in.mark(2);
+        is.mark(2);
         int magic = 0;
         try {
-            magic = in.read() & 0xff | ((in.read() << 8) & 0xff00);
-            in.reset();
+            magic = is.read() & 0xff | ((is.read() << 8) & 0xff00);
+            is.reset();
         } catch (IOException e) {
-            log.error("isGZipped error", e);
+            LOG.error("isGZipped error", e);
             return false;
         }
         return magic == GZIPInputStream.GZIP_MAGIC;
